@@ -72,31 +72,31 @@ def test(RetinaNet=TMRPN,cfg=TMcfg):
     multiscale_test(multiscale_imgs,model,cfg=cfg)
     f.close()
     logging.info("finshed and total cost of time is :{}|number of empty:{}".format(datetime.now()-start_time,empty_num))
+@torch.no_grad()
 def multiscale_test(imgs_name:List,model:nn.Module,cfg=TMcfg):#148KLEW0：fliped
     img2tensor = transforms.Compose([transforms.ToTensor(),
                                      transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
     f=open('multi_cannot_detect.txt','w')
     logging.info("starting multiscale test")
     for i,img_name in enumerate(imgs_name):
-        #image = load_img(cfg.IMAGE_PATH + img_name)
+        try:
+            image = load_img(cfg.IMAGE_PATH + img_name)
+        except FileNotFoundError:
+            break
         flag = False
         break_time=0
         for j,scale in enumerate(cfg.MULTISCALE_SIZE):
             if flag==True:
                 break
-            image = load_img(cfg.IMAGE_PATH + img_name)
+            #image = load_img(cfg.IMAGE_PATH + img_name)
             logging.debug("length:{}|step:{}|img_name:{}|scale:{}".format(len(imgs_name),i,img_name,scale))
-            print('before resize:{}'.format(image.size))
-            img_,min_ratio=img_transform(image,scale)
-            w,h=img_.size
+            img,min_ratio=img_transform(image,scale)
+            #w,h=img.size
             #pad=transforms.Pad(padding=(0,0,scale[0]-w,scale[1]-h),fill=0)
             #img=pad(img_)
-            img=img_
-            print('padding:{}|min_ratio:{}'.format(img.size,min_ratio))
-            img=img2tensor(img)
-            print('after resize:{}'.format(image.size))
-            w,h=img.size(1),img.size(2)
-            loc_preds,cls_preds=model(img.unsqueeze(0).to(cfg.DEVICE))
+            img_tensor=img2tensor(img)
+            h,w=img_tensor.size(1),img_tensor.size(2)
+            loc_preds,cls_preds=model(img_tensor.unsqueeze(0).to(cfg.DEVICE))
             batch_cls,batch_score,batch_coordinate=fovea2boxes(loc_preds.cpu(),cls_preds.cpu(),torch.Tensor([w,h]),tuple_l=cfg.TUPLE_L)
             cls,score,coordinate=batch_cls[0],batch_score[0],batch_coordinate[0]
             for num_class in range(1,cfg.NUM_CLASS+1):
@@ -110,8 +110,8 @@ def multiscale_test(imgs_name:List,model:nn.Module,cfg=TMcfg):#148KLEW0：fliped
                 cls_class,score_class,coordinate_class=cls_class[keep],score_class[keep],coordinate_class[keep]
                 print('coordinate:{}'.format(coordinate_class))
                 coordinate_class/=min_ratio
-                coordinate_class[:,[0,1]].floor_()
-                coordinate_class[:,[2,3]].ceil_()
+                coordinate_class[:,[0,1]]=coordinate_class[:,[0,1]].floor()
+                coordinate_class[:,[2,3]]=coordinate_class[:,[2,3]].ceil()
                 print('coordinate:{}'.format(coordinate_class))
                 if len(score_class) == 0:
                     break_time+=1
@@ -119,7 +119,7 @@ def multiscale_test(imgs_name:List,model:nn.Module,cfg=TMcfg):#148KLEW0：fliped
                 _, index = score_class.max(0)
                 print('index:{}|coordinate_classs:{}'.format(index,coordinate_class[index]))
                 #TMcrop_img(image,temp,img_name=img_name,path=cfg.CROP_PATH)
-                TMcrop_img(image,coordinate_class[index],img_name=img_name,path=cfg.CROP_PATH)
+                TMcrop_img(image,coordinate_class[index],img_name=img_name,path=cfg.CROP_PATH_COMPLEMENT)
                 flag=True
             if break_time==len(cfg.MULTISCALE_SIZE):
                 f.write(img_name + '\n')
@@ -135,13 +135,13 @@ def write_submission(cls_class:List,score_class:List,coordinate:List,img_name:st
         f.write(','.join(coordinate_i)+','+str(cls_class[i])+','+str(score_class[i]))
     f.close()
 if __name__=='__main__':
-    test(TMRPN,TMcfg)
-    """
+    #test(TMRPN,TMcfg)
+
     with open('cannot_detect.txt','r') as f:
         imgs_name=f.read()
     #print(imgs_name.split('\n'))
-    with torch.no_grad():
-        model = TMRPN(TMcfg.NUM_CLASS)  # transforms.ColorJitter(brightness=0.5,contrast=0.5,saturation=0.5,hue=0.3),
-        model.load_state_dict(torch.load(TMcfg.MODEL_PATH + TMcfg.MODEL_NAME, map_location=TMcfg.DEVICE))
-        model.eval()
-        multiscale_test(imgs_name.split('\n'),model.to(TMcfg.DEVICE))"""
+
+    model = TMRPN(TMcfg.NUM_CLASS)  # transforms.ColorJitter(brightness=0.5,contrast=0.5,saturation=0.5,hue=0.3),
+    model.load_state_dict(torch.load(TMcfg.MODEL_PATH + TMcfg.MODEL_NAME, map_location=TMcfg.DEVICE))
+    model.eval()
+    multiscale_test(imgs_name.split('\n'),model.to(TMcfg.DEVICE))

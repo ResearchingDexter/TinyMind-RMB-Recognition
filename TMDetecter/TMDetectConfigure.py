@@ -10,6 +10,7 @@ class TMcfg:
     TEST_IMAGE_PATH=r'E:\Files\TinyMind\public_test_data\public_test_data\\'
     LABEL_PATH=r'E:\Files\TinyMind\train_data\train_label\\'
     CROP_PATH=r'E:\Files\TinyMind\train_data\multi_test_crop\\'
+    CROP_PATH_COMPLEMENT=r'E:\Files\TinyMind\train_data\multi_test_crop_complement\\'
     #IMAGE_PATH=r'E:\Files\TinyMind\train_data\train_data\\'
     IMAGE_PATH=TEST_IMAGE_PATH
     IMAGE_NAME='1HQ0TNBZ.jpg'
@@ -22,6 +23,6 @@ class TMcfg:
     TOTAL_NUM=1000
     POSTIVE_NUM=500
     EXPECTED_IMG_SIZE = (500,250)#(448, 224)(500,250)(600,300),(800,400)
-    MULTISCALE_SIZE=((448,224),(500,250),(600,300),(640,320),(800,400))
+    MULTISCALE_SIZE=((500,250),(600,300),(800,400))
 if TMcfg.DISTRIBUTED==True:
     TMcfg.DEVICE+=':'+str(TMcfg.DEVICE_ID[0])

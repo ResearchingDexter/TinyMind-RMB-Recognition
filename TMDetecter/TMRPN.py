@@ -1,6 +1,9 @@
 import torch.nn as nn
 import torch
-from TMDetecter.TMBackbone import TMBackbone
+try:
+    from TMDetecter.TMBackbone import TMBackbone
+except ModuleNotFoundError:
+    from TinyMind.TMDetecter.TMBackbone import TMBackbone
 class TMRPN(nn.Module):
     def __init__(self,num_classes=1,criterion=None,backbone=TMBackbone,fpn=True):
         super(TMRPN,self).__init__()
