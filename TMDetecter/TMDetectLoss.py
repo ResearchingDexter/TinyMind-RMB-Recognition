@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
-from TinyMind.Logging import *
+from Logging import *
 __all__=['FocalLoss']
 def sigmoid_focal_loss(preds:torch.Tensor,targets:torch.Tensor,gamma:float=2,alpha:float=0.25):
     num_classes=preds.size(1)

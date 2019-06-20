@@ -7,12 +7,12 @@ from torch.autograd import Variable
 from IPython.display import clear_output
 from datetime import datetime
 from torchvision.transforms import transforms
-from TinyMind.TMDetecter.TMDetectDataSet import FBDataSet,img_transform,load_img
-from TinyMind.Logging import *
-from TinyMind.TMDetecter.TMDetectUtils import fovea2boxes,box_nms
-from TinyMind.TMUtils import TMcrop_img
-from TinyMind.TMDetecter.TMRPN import TMRPN
-from TinyMind.TMDetecter.TMDetectConfigure import *
+from TMDetecter.TMDetectDataSet import FBDataSet,img_transform,load_img
+from Logging import *
+from TMDetecter.TMDetectUtils import fovea2boxes,box_nms
+from TMUtils import TMcrop_img
+from TMDetecter.TMRPN import TMRPN
+from TMDetecter.TMDetectConfigure import *
 @torch.no_grad()
 def test(RetinaNet=TMRPN,cfg=TMcfg):
     if cfg.DEVICE[:4]=='cuda':

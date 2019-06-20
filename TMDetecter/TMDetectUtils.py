@@ -1,13 +1,9 @@
 import torch
-from torch.utils.data import DataLoader
-from torchvision import transforms
 from typing import Tuple,List
 import math
 import copy
-from FoveaBox.FBDataSet import FBDataSet
 import numpy as np
 import pdb
-from FoveaBox.FBConfigure import TOTAL_NUM,POSITIVE_NUM
 #from CrowdHuman.CHUtils import resize_img
 from PIL import Image,ImageDraw,ImageFont
 POSITIVE_NUM=400

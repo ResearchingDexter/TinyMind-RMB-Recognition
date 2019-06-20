@@ -8,13 +8,13 @@ from torchvision import transforms
 import os
 import pdb
 from IPython.display import clear_output
-from TinyMind.TMDetecter.TMDetectDataSet import FBDataSet
-from TinyMind.TMDetecter.TMDetectLoss import FocalLoss
-from TinyMind.TMDetecter.TMDetectUtils import default_target_transform#default_load_label
-from TinyMind.TMUtils import TMload_label
-from TinyMind.TMDetecter.TMRPN import TMRPN
-from TinyMind.Logging import *
-from TinyMind.TMDetecter.TMDetectConfigure import *
+from TMDetecter.TMDetectDataSet import FBDataSet
+from TMDetecter.TMDetectLoss import FocalLoss
+from TMDetecter.TMDetectUtils import default_target_transform#default_load_label
+from TMUtils import TMload_label
+from TMDetecter.TMRPN import TMRPN
+from Logging import *
+from TMDetecter.TMDetectConfigure import *
 torch.backends.cudnn.benchmark = True
 #os.environ['CUDA_VISIBLE_DEVICES']='0'
 def train(RetinaNet=TMRPN,default_load_label=TMload_label,default_target_transform=default_target_transform,cfg=TMcfg):

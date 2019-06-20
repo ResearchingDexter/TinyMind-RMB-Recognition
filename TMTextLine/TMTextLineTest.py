@@ -6,12 +6,12 @@ import pdb
 from datetime import datetime
 from torchvision import transforms
 import json
-from TinyMind.TMTextLine.TMTextLineDataSet import TMTextLineDataSet
-from TinyMind.TMTextLine.TMTextLineNN import ResNetLSTM
+from TMTextLine.TMTextLineDataSet import TMTextLineDataSet
+from TMTextLine.TMTextLineNN import ResNetLSTM
 import sys
 from IPython.display import clear_output
 sys.path.append('../')
-from TinyMind.Logging import *
+from Logging import *
 torch.backends.cudnn.benchmark = True
 os.environ['CUDA_VISIBLE_DEVICES']='0'
 class cfg:
