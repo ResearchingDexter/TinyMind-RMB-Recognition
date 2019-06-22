@@ -7,7 +7,7 @@ from datetime import datetime
 from torchvision import transforms
 import json
 from TMTextLine.TMTextLineDataSet import TMTextLineDataSet
-from TMTextLine.TMTextLineNN import ResNetLSTM
+from TMTextLine.TMTextLineNN import ResNetLSTM,VGGLSTM
 import sys
 from IPython.display import clear_output
 sys.path.append('../')
@@ -22,8 +22,9 @@ class cfg:
     COORDINATES_PATH=r'E:\Files\ICDAR2019RecTs\ReCTS_test_part1\ReCTS_test_part1\Task2\coordinates\\'
     IMAGE_PATH=r'E:\Files\TinyMind\train_data\multi_test_crop\\'
     MODEL_PATH=r'E:\Files\TinyMind\train_data\\'
-    MODEL_NAME='TMResNet101LSTM_2_512.pkl'
+    MODEL_NAME='optimal0.49613821138211384TMVGG13BNLSTM_2_32_512.pkl'#'TMResNet101LSTM_2_512.pkl'
     NUM_CLASS=36
+    EXPECTED_IMG_SIZE=(200,32)
 def test(model=ResNetLSTM,DataSet=TMTextLineDataSet,cfg=cfg):
     if cfg.DEVICE=='cuda':
         if torch.cuda.is_available()==False:
@@ -42,7 +43,8 @@ def test(model=ResNetLSTM,DataSet=TMTextLineDataSet,cfg=cfg):
     model.to(cfg.DEVICE).eval()
     dataset=DataSet(cfg.IMAGE_PATH,img_transform=transforms.Compose([
                                                                                         transforms.ToTensor(),
-                                                                                        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))]),train=False)
+                                                                                        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))]),
+                    expected_img_size=cfg.EXPECTED_IMG_SIZE,train=False)
     dataloader=DataLoader(dataset,batch_size=cfg.BATCH_SIZE,num_workers=0)
     length=len(dataloader)
     file=open('task2.txt','w',encoding='utf-8')
@@ -57,6 +59,8 @@ def test(model=ResNetLSTM,DataSet=TMTextLineDataSet,cfg=cfg):
         _, preds = preds.max(2)
         for i in range(batch_size):
             pred,_=condense(preds[i])
+            if len(pred)>10:
+                distill_condense(pred)
             pred_str=[]
             for p in pred:
                 s=dictionary_inv.get(str(p))
@@ -72,6 +76,18 @@ def test(model=ResNetLSTM,DataSet=TMTextLineDataSet,cfg=cfg):
             clear_output(wait=True)
     logging.info('ended')
     f.close()
+def distill_condense(pred:list,expected_length=10):
+    while len(pred)>expected_length:
+        count=0
+        for i,p in enumerate(pred):
+            if i>0 and pred[i-1]==pred[i]:
+                a=pred.pop(i)
+                print('pop:{}|pred:{}'.format(a,pred))
+                break
+            else:
+                count+=1
+        if count==len(pred):
+            break
 def condense(pred):
     result=[]
     original_pred=[]
@@ -81,5 +97,9 @@ def condense(pred):
             result.append(p.item())
     return result,original_pred
 if __name__=='__main__':
-    test()
+    test(model=VGGLSTM)
+    """
+    a=[2,1,3,3,3,5,8,9,5,68,1,1,11,6]
+    distill_condense(a)
+    print(a)"""
 

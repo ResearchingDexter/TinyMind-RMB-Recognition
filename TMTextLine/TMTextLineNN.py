@@ -74,7 +74,7 @@ class DenseCNN(nn.Module):
 class VGGLSTM(nn.Module):
     def __init__(self,num_classes=4134+1):
         super(VGGLSTM,self).__init__()
-        self.feature_extractor=vgg_13()
+        self.feature_extractor=vgg_13bn()
         self.decoder=nn.Sequential(BLSTM(self.feature_extractor.num_features,num_hidden=512,num_out=512,drop_rate=0),
                                    BLSTM(512,512,num_out=num_classes,drop_rate=0))
         self.logsoftmax=nn.LogSoftmax(-1)

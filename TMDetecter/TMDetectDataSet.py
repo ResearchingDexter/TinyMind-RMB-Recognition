@@ -9,7 +9,7 @@ from random import randint
 tuple_l=(3,5)#(4,4)
 def load_img(path:str)->Image.Image:
     return Image.open(path).convert('RGB')
-def resize_img(img:Image.Image,boxes:torch.Tensor,expected_size:Tuple)->Tuple[Image.Image,torch.Tensor]:#expected_size=(w,h)
+def resize_img(img:Image.Image,boxes:torch.Tensor,expected_size:List)->Tuple[Image.Image,torch.Tensor]:#expected_size=(w,h)
     w,h=img.size
     w_ratio,h_ratio=expected_size[0]/w,expected_size[1]/h
     img=img.resize(expected_size,resample=Image.BICUBIC)
@@ -41,7 +41,7 @@ def img_transform(img:Image.Image,expected_size:Tuple)->Tuple[Image.Image,float]
 class FBDataSet(Dataset):
     def __init__(self,img_path:str,label_path:Optional[str]=None,load_label:Optional[Callable[[str,str] ,Tuple]]=None,target_transform:Optional[Callable[...,Tuple]]=None,
                  expected_img_size:Optional[Tuple]=None,img_transform:Callable[[Image.Image],torch.Tensor]=None,load_img:Callable[[str],Image.Image]=load_img,
-                 cfg:Optional[classmethod]=None,labels_index=False,train:bool=True):
+                 cfg:Optional=None,labels_index=False,train:bool=True):
         super(FBDataSet,self).__init__()
         self.img_path=img_path
         self.img_transform=img_transform

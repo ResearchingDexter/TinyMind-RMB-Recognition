@@ -98,7 +98,9 @@ def TMload_label(label_path:str,img_name:str)->Tuple[torch.Tensor,torch.Tensor]:
     return coordinate.unsqueeze(0),torch.Tensor([1])
 if __name__=='__main__':
     #alleviate_json()
-    with open('task2.txt','r') as f:
+    #with open('./TMTextLine/task2.txt','r') as f:
+    with open('./submission/submission.txt', 'r') as f:
+
         recogniton=f.read().split('\n')
     total=os.listdir(r'E:\Files\TinyMind\public_test_data\public_test_data\\')
     name=[]
@@ -115,7 +117,7 @@ if __name__=='__main__':
         if t not in name_set:
             name.append(t)
             label.append('LK39482832')
-    pd.DataFrame({'name':name,'label':label}).to_csv('TMIDSubmission2.csv',sep=',',index=0)
+    pd.DataFrame({'name':name,'label':label}).to_csv('./submission/TMIDSubmission4_200_32.csv',sep=',',index=0)
     print('finished')
     #TMcal_labels_length(r'E:\Files\TinyMind\\','train_id_label.csv')
     """

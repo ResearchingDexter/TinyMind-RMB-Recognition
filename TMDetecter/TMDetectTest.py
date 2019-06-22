@@ -14,12 +14,12 @@ from TMUtils import TMcrop_img
 from TMDetecter.TMRPN import TMRPN
 from TMDetecter.TMDetectConfigure import *
 @torch.no_grad()
-def test(RetinaNet=TMRPN,cfg=TMcfg):
+def test(model=TMRPN,cfg=TMcfg):
     if cfg.DEVICE[:4]=='cuda':
         if torch.cuda.is_available()==False:
             logging.info("can't find a GPU device")
             pdb.set_trace()
-    model=RetinaNet(cfg.NUM_CLASS)#transforms.ColorJitter(brightness=0.5,contrast=0.5,saturation=0.5,hue=0.3),
+    model=model(cfg.NUM_CLASS)#transforms.ColorJitter(brightness=0.5,contrast=0.5,saturation=0.5,hue=0.3),
     model.load_state_dict(torch.load(cfg.MODEL_PATH+cfg.MODEL_NAME,map_location=cfg.DEVICE))
     dataset=FBDataSet(cfg.IMAGE_PATH,expected_img_size=cfg.EXPECTED_IMG_SIZE,
                       img_transform=transforms.Compose([
@@ -35,11 +35,11 @@ def test(RetinaNet=TMRPN,cfg=TMcfg):
     start_time=datetime.now()
     empty_num=0
     f=open('cannot_detect.txt','w')
-    multiscale_imgs=[]
+    multiscale_imgs_name=[]
     for step,data in enumerate(dataloader):
         step_time=datetime.now()
         imgs,imgs_name,min_ratioes,images=data
-        keep_images=list(range(imgs.size(0)))
+        #keep_images=list(range(imgs.size(0)))
         imgs = Variable(imgs, requires_grad=False).to(cfg.DEVICE)
         batch_size=imgs.size(0)
         h,w=imgs.size(2),imgs.size(3)
@@ -58,18 +58,18 @@ def test(RetinaNet=TMRPN,cfg=TMcfg):
                 coordinate_class[:,[0,1]].floor_()
                 coordinate_class[:,[2,3]].ceil_()
                 if len(score_class)==0:
-                    multiscale_imgs.append(imgs_name[b])
+                    multiscale_imgs_name.append(imgs_name[b])
                     empty_num+=1
                     f.write(imgs_name[b]+'\n')
                     continue
-                else:
-                    keep_images.pop(b)
+                #else:
+                    #keep_images.pop(b)
                 _,index=score_class.max(0)
                 TMcrop_img(images[b],coordinate_class[index].tolist(),img_name=imgs_name[b],path=cfg.CROP_PATH)
         if step%200==0:
             clear_output(wait=True)
         logging.debug("step_time cost :{}".format(datetime.now()-step_time))
-    multiscale_test(multiscale_imgs,model,cfg=cfg)
+    multiscale_test(multiscale_imgs_name,model,cfg=cfg)
     f.close()
     logging.info("finshed and total cost of time is :{}|number of empty:{}".format(datetime.now()-start_time,empty_num))
 @torch.no_grad()

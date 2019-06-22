@@ -38,10 +38,10 @@ class TMTextLineDataSet(Dataset):
                 figure_label.append(int(s_)+1)#0 for blank"""
             img=self.load_img(self.img_path+name)
             #theata=random.random()#
-            img=self._resize_img(img=img,w=e_w,h=e_h)#376=47*8
+            img=self.resize_img(img=img,w=e_w,h=e_h)#376=47*8
             w,h=img.size
             if w<e_w:
-                img=self._pad_img(img,(e_w,e_h))
+                img=self.pad_img(img,(e_w,e_h))
             if self.img_transform is not None:
                 img=self.img_transform(img)
             return img,label,len(label),name    #image,the label ,the length of the label
@@ -49,10 +49,10 @@ class TMTextLineDataSet(Dataset):
             img_name=self.img_names[item]
             img=self.load_img(self.img_path+img_name)
             print(img.size)
-            img=self._resize_img(img=img,w=e_w,h=e_h)
+            img=self.resize_img(img=img,w=e_w,h=e_h)
             w,h=img.size
             if w<e_w:
-                img=self._pad_img(img,(e_w,e_h))
+                img=self.pad_img(img,(e_w,e_h))
             if self.img_transform is not None:
                 img=self.img_transform(img)
             return img,img_name
@@ -61,7 +61,8 @@ class TMTextLineDataSet(Dataset):
             return len(self.labels)
         else:
             return len(self.img_names)
-    def _resize_img(self,img:Image.Image,w=376,h=32):
+    @staticmethod
+    def resize_img(img:Image.Image,w=376,h=32):
         img_w,img_h=img.size
         if img_h<h:
             theata=math.ceil(h/img_h)
@@ -74,7 +75,8 @@ class TMTextLineDataSet(Dataset):
         if img_w>w:
             return img.resize((w,h))
         return img
-    def _pad_img(self,img,img_size_padded:tuple):#img_size_padded=(w,h)
+    @staticmethod
+    def pad_img(img,img_size_padded:tuple):#img_size_padded=(w,h)
         w,h=img.size
         #print(img_size_padded)
         img_array=np.array(img)
