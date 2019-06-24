@@ -12,8 +12,8 @@ cfg = {
     'D': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M'],
     'E': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 256, 'M', 512, 512, 512, 512, 'M', 512, 512, 512, 512, 'M'],
 }
-vgg_kernel_sizes=((2,2),(2,2),(2,2),(2,1),(2,1))
-vgg_strides=((2,2),(2,2),(2,2),(2,1),(2,1))
+vgg_kernel_sizes=((2,2),(2,2),(2,2),(2,2),(2,1))
+vgg_strides=((2,2),(2,2),(2,2),(2,2),(2,1))
 class ResNetLSTM(nn.Module):
     def __init__(self,num_classes=4134+1):
         super(ResNetLSTM,self).__init__()
@@ -33,25 +33,22 @@ class ResNetLSTM(nn.Module):
 class VGGFC(nn.Module):
     def __init__(self,num_classes=4134+1):
         super(VGGFC,self).__init__()
-        self.feature_extractor=vgg_13()
-        self.decoder=nn.Sequential(nn.Linear(self.feature_extractor.num_features,self.feature_extractor.num_features*2),
+        self.feature_extractor=vgg_13bn()
+        self.decoder=nn.Sequential(nn.Linear(self.feature_extractor.num_features,self.feature_extractor.num_features//4),
                                    nn.ReLU(inplace=True),
                                    nn.Dropout(p=0),
-                                   nn.Linear(self.feature_extractor.num_features*2,self.feature_extractor.num_features*4),
-                                   nn.ReLU(inplace=True),
-                                   nn.Dropout(p=0.1),
-                                   nn.Linear(self.feature_extractor.num_features*4,num_classes),
-                                   nn.Dropout(p=0.1))
-        self.logsoftmax=nn.LogSoftmax(-1)
+                                   nn.Linear(self.feature_extractor.num_features//4,num_classes),
+                                )
+        #self.logsoftmax=nn.LogSoftmax(-1)
     def forward(self, input):
         output=self.feature_extractor(input)
         b, c, h, w = output.size()
         assert h == 1, "b:{}|c:{}|h:{}|w:{}".format(b, c, h, w)
         output=output.squeeze(2).permute(0,2,1).reshape(b*w,c)
         output=self.decoder(output)
-        output=output.reshape(b,w,-1)
-        output=output.permute(1,0,2)
-        return self.logsoftmax(output)
+        #output=output.reshape(b,w,-1)
+        #output=output.permute(1,0,2)
+        return output
 class DenseCNN(nn.Module):
     def __init__(self,num_classes=4134+1):
         super(DenseCNN,self).__init__()

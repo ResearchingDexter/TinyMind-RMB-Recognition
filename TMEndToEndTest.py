@@ -15,14 +15,15 @@ from Logging import *
 from TMDetecter.TMDetectUtils import fovea2boxes,box_nms
 from TMUtils import TMcrop_img
 from TMDetecter.TMRPN import TMRPN
-from TMTextLine.TMTextLineNN import ResNetLSTM,VGGLSTM
+from TMTextLine.TMTextLineNN import ResNetLSTM,VGGLSTM,VGGFC
 from TMTextLine.TMTextLineTest import condense,distill_condense
 from TMEndToEndConfigure import *
+CFG=TMETEcfg()
 @torch.no_grad()
-def end_to_end_test(detect_model:nn.Module=TMRPN(TMETEcfg.DETECT_NUM_CLASS),
+def end_to_end_test(detect_model:nn.Module=TMRPN(CFG.DETECT_NUM_CLASS),
                     detect_dataset=FBDataSet,
-                    recognize_model:nn.Module=VGGLSTM(TMETEcfg.RECOGNIZE_NUM_CLASS),
-                    cfg=TMETEcfg()):
+                    recognize_model:nn.Module=VGGLSTM(CFG.RECOGNIZE_NUM_CLASS),
+                    cfg=CFG):
     if cfg.DEVICE=='cuda':
         if torch.cuda.is_available()==False:
             logging.error("can't find a GPU device")
@@ -86,8 +87,12 @@ def end_to_end_test(detect_model:nn.Module=TMRPN(TMETEcfg.DETECT_NUM_CLASS),
                 _, index = score_class.max(0)
                 """start cropping"""
                 crop_img=TMcrop_img(images[b], coordinate_class[index].tolist(), img_name=imgs_name[b],save=False, path=cfg.CROP_PATH)
-                crop_img=TMTextLineDataSet.resize_img(crop_img,r_e_w,r_e_h)
-                crop_img=TMTextLineDataSet.pad_img(crop_img,(r_e_w,r_e_h))
+                #assert cfg.LOSS in ('CTC', 'ECP'), 'cfg.LOSS must be \'CTC\' or \'ECP\',but got :{}'.format(cfg.LOSS)
+                if cfg.LOSS=='CTC':
+                    crop_img=TMTextLineDataSet.resize_img(crop_img,r_e_w,r_e_h)
+                    crop_img=TMTextLineDataSet.pad_img(crop_img,(r_e_w,r_e_h))
+                else:
+                    crop_img=crop_img.resize((r_e_w,r_e_h))
                 crop_img=img2tensor(crop_img)
                 crop_imgs.append(crop_img)
                 crop_imgs_name.append(imgs_name[b])
@@ -107,24 +112,46 @@ def recognizer(model:nn.Module,crop_imgs:List,names:List,dictionary_inv:dict,cfg
     imgs=torch.stack(crop_imgs,dim=0)
     imgs = Variable(imgs).to(cfg.DEVICE)
     preds = model(imgs)
-    preds = preds.permute(1, 0, 2)
-    batch_size = preds.size(0)
-    preds = preds.cpu()
-    _, preds = preds.max(2)
-    for i in range(batch_size):
-        pred, _ = condense(preds[i])
-        if len(pred) > 10:
-            distill_condense(pred)
-        pred_str = []
-        for p in pred:
-            s = dictionary_inv.get(str(p))
+    #assert cfg.LOSS in ('CTC','ECP'),'cfg.LOSS must be \'CTC\' or \'ECP\',but got :{}'.format(cfg.LOSS)
+    if cfg.LOSS=='CTC':
+        preds = preds.permute(1, 0, 2)
+        batch_size = preds.size(0)
+        preds = preds.cpu()
+        _, preds = preds.max(2)
+        for i in range(batch_size):
+            pred, _ = condense(preds[i])
+            if len(pred) > 10:
+                distill_condense(pred)
+            pred_str = []
+            for p in pred:
+                s = dictionary_inv.get(str(p))
+                pred_str.append(s)
+                pred_str = ''.join(pred_str)
+            if len(pred_str) == 0:
+                pred_str = '1'
+            logging.info("image's name:{}|predicting character:{}".format(names[i], pred_str))
+            name = names[i]
+            f.write(name + ',' + pred_str + '\n')
+    else:
+        preds = preds.cpu()
+        _,preds=preds.max(-1)
+        pred_str=[]
+        for i,p in enumerate(preds):
+            s=dictionary_inv.get(str(p.item()+1))
+            if i!=0 and i%10==0 :
+                pred_str=''.join(pred_str)
+                index=i//10
+                logging.info("image's name:{}|predicting character:{}".format(names[index-1], pred_str))
+                f.write(names[index-1] + ',' + pred_str + '\n')
+                pred_str=[]
+            if i==len(preds)-1:
+                pred_str.append(s)
+                pred_str=''.join(pred_str)
+                index=(i+1)//10
+                logging.info("image's name:{}|predicting character:{}".format(names[index - 1], pred_str))
+                f.write(names[index - 1] + ',' + pred_str + '\n')
+                break
             pred_str.append(s)
-        pred_str = ''.join(pred_str)
-        if len(pred_str) == 0:
-            pred_str = '1'
-        logging.info("image's name:{}|predicting character:{}".format(names[i], pred_str))
-        name = names[i]
-        f.write(name + ',' + pred_str + '\n')
     logging.info('recognizer ended')
     f.close()
 
@@ -191,5 +218,5 @@ def multiscale_test(imgs_name: List, model: nn.Module,recognize_model, cfg=TMETE
         logging.info("flag:{}".format(break_time))
     f.close()
 if __name__=='__main__':
-    end_to_end_test()
+    end_to_end_test(recognize_model=VGGFC(CFG.RECOGNIZE_NUM_CLASS))
 
