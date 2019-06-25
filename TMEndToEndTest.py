@@ -15,7 +15,7 @@ from Logging import *
 from TMDetecter.TMDetectUtils import fovea2boxes,box_nms
 from TMUtils import TMcrop_img
 from TMDetecter.TMRPN import TMRPN
-from TMTextLine.TMTextLineNN import ResNetLSTM,VGGLSTM,VGGFC
+from TMTextLine.TMTextLineNN import ResNetLSTM,VGGLSTM,VGGFC,DenseFC,DenseLSTM
 from TMTextLine.TMTextLineTest import condense,distill_condense
 from TMEndToEndConfigure import *
 CFG=TMETEcfg()
@@ -221,4 +221,4 @@ def multiscale_test(imgs_name: List, model: nn.Module,recognize_model, cfg=TMETE
         logging.info("flag:{}".format(break_time))
     f.close()
 if __name__=='__main__':
-    end_to_end_test(recognize_model=VGGLSTM(CFG.RECOGNIZE_NUM_CLASS))
+    end_to_end_test(recognize_model=DenseLSTM(CFG.RECOGNIZE_NUM_CLASS))

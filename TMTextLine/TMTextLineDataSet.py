@@ -9,7 +9,7 @@ import math
 def load_img(path:str)->Image.Image:
     return Image.open(path).convert('RGB')
 class TMTextLineDataSet(Dataset):
-    def __init__(self,img_path:str,dictionary:Optional[dict]=None,expected_img_size:Optional[Tuple]=None,img_transform:Any=None,train=True,load_img=load_img):
+    def __init__(self,img_path:str,dictionary:Optional[dict]=None,expected_img_size:Optional[Tuple]=None,img_transform:Any=None,train=True,cfg:Any=None,load_img=load_img):
         super(TMTextLineDataSet,self).__init__()
         self.img_path=img_path
         self.dictionary=dictionary
@@ -17,6 +17,7 @@ class TMTextLineDataSet(Dataset):
         self.img_transform=img_transform
         self.train=train
         self.load_img=load_img
+        self.cfg=cfg
         if train==True:
             self.labels=pd.read_csv('train_id_crop_label.csv',sep=',')
         else:
@@ -37,11 +38,14 @@ class TMTextLineDataSet(Dataset):
                     print('name:{}|label:{}'.format(name,label))
                 figure_label.append(int(s_)+1)#0 for blank"""
             img=self.load_img(self.img_path+name)
-            #theata=random.random()#
-            img=self.resize_img(img=img,w=e_w,h=e_h)#376=47*8
-            w,h=img.size
-            if w<e_w:
-                img=self.pad_img(img,(e_w,e_h))
+            if self.cfg is not None and self.cfg.LOSS=='ECP':
+                img=img.resize((e_w,e_h))
+            else:
+                #theata=random.random()#
+                img=self.resize_img(img=img,w=e_w,h=e_h)#376=47*8
+                w,h=img.size
+                if w<e_w:
+                    img=self.pad_img(img,(e_w,e_h))
             if self.img_transform is not None:
                 img=self.img_transform(img)
             return img,label,len(label),name    #image,the label ,the length of the label
@@ -49,10 +53,13 @@ class TMTextLineDataSet(Dataset):
             img_name=self.img_names[item]
             img=self.load_img(self.img_path+img_name)
             print(img.size)
-            img=self.resize_img(img=img,w=e_w,h=e_h)
-            w,h=img.size
-            if w<e_w:
-                img=self.pad_img(img,(e_w,e_h))
+            if self.cfg is not None and self.cfg.LOSS=='ECP':
+                img=img.resize((e_w,e_h))
+            else:
+                img=self.resize_img(img=img,w=e_w,h=e_h)#376=47*8
+                w,h=img.size
+                if w<e_w:
+                    img=self.pad_img(img,(e_w,e_h))
             if self.img_transform is not None:
                 img=self.img_transform(img)
             return img,img_name

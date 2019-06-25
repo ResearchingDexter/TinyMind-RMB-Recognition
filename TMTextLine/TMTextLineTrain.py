@@ -2,36 +2,24 @@ import torch
 from torch.autograd import Variable
 from datetime import datetime
 from torch.utils.data import DataLoader
-from torch.nn import CTCLoss
+from torch.nn import CTCLoss,CrossEntropyLoss
 from torch.optim import Adam,Adadelta
 import json
 from torchvision import transforms
 from IPython.display import clear_output
-from TinyMind.TMTextLine.TMTextLineDataSet import TMTextLineDataSet
-from TinyMind.TMTextLine.TMTextLineNN import ResNetLSTM
+from TMTextLine.TMTextLineDataSet import TMTextLineDataSet
+from TMTextLine.TMTextLineNN import ResNetLSTM
 import pdb
 import os
 import sys
 sys.path.append('../')
-from TinyMind.Logging import *
+from Logging import *
+from TMTextLine.TMTextLineConfigure import *
+cfg=cfg()
 torch.backends.cudnn.benchmark = True
 os.environ['CUDA_VISIBLE_DEVICES']='0'
-class cfg:
-    DEVICE='cuda'
-    BATCH_SIZE=8
-    EPOCH=10000
-    PATH=r'E:\Files\ICDAR2019RecTs\ReCTS\\'
-    DICTIONARY_NAME='RecTs2dictionary.json'
-    IMAGE_PATH=r'E:\Files\ICDAR2019RecTs\ReCTS\task2_cropped_img_less_30\\'
-    MODEL_PATH=r'E:\Files\ICDAR2019RecTs\ReCTS\\'
-    MODEL_NAME='DenseCNN.pkl'
-    EXPECTED_IMG_SIZE=(128,16)
-    PRETRAIN=False
-    NUM_CLASS=4134+1
-    LR=0.001
-    MAX_ACCURACY=0
 def train(pretrain=cfg.PRETRAIN,model=ResNetLSTM,DataSet=TMTextLineDataSet,cfg=cfg):
-    logging.debug('pretrain:{}'.format(pretrain))
+    logging.info('pretrain:{}'.format(pretrain))
     if cfg.DEVICE=='cuda':
         if torch.cuda.is_available()==False:
             logging.error("can't find a GPU device")
@@ -50,11 +38,15 @@ def train(pretrain=cfg.PRETRAIN,model=ResNetLSTM,DataSet=TMTextLineDataSet,cfg=c
     model.register_backward_hook(backward_hook)#transforms.Resize((32,400))
     dataset=DataSet(cfg.IMAGE_PATH,dictionary,cfg.EXPECTED_IMG_SIZE,img_transform=transforms.Compose([transforms.ColorJitter(brightness=0.5,contrast=0.5,saturation=0.5,hue=0.3),
                                                                                         transforms.ToTensor(),
-                                                                                        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))]))
+                                                                                        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))]),
+                    cfg=cfg)
     dataloader=DataLoader(dataset,batch_size=cfg.BATCH_SIZE,shuffle=True,num_workers=4,drop_last=False)#collate_fn=dataset.collate
     #optimizer=Adam(model.parameters(),lr=LR,betas=(0.9,0.999),weight_decay=0)
     optimizer=Adadelta(model.parameters(),lr=0.01,rho=0.9,weight_decay=0)
-    criterion=CTCLoss(blank=0)
+    if cfg.LOSS=='CTC':
+        criterion=CTCLoss(blank=0)
+    else:
+        criterion=CrossEntropyLoss()
     length=len(dataloader)
     max_accuracy=0
     if os.path.exists('max_accuracy.txt')==True:
@@ -76,8 +68,15 @@ def train(pretrain=cfg.PRETRAIN,model=ResNetLSTM,DataSet=TMTextLineDataSet,cfg=c
             label_size=Variable(label_size).to(cfg.DEVICE)
             preds=model(imgs)
             logging.debug("preds size:{}".format(preds.size()))
-            preds_size=Variable(torch.LongTensor([preds.size(0)]*cfg.BATCH_SIZE)).to(cfg.DEVICE)
-            loss=criterion(preds,label,preds_size,label_size)
+            if cfg.LOSS=='CTC':
+                preds_size=Variable(torch.LongTensor([preds.size(0)]*cfg.BATCH_SIZE)).to(cfg.DEVICE)
+                loss=criterion(preds,label,preds_size,label_size)
+                num_same = if_same(preds.cpu().data, batch_label)
+
+            else:
+                loss=criterion(preds,label)
+                preds_index=preds.max(1)[1]
+                num_same = (preds_index==label).sum().item()
             epoch_loss+=loss.item()
             optimizer.zero_grad()
             loss.backward()
@@ -86,7 +85,7 @@ def train(pretrain=cfg.PRETRAIN,model=ResNetLSTM,DataSet=TMTextLineDataSet,cfg=c
             if min_loss>loss.item():
                 min_loss=loss.item()
                 torch.save(model.state_dict(),cfg.MODEL_PATH+cfg.MODEL_NAME)
-            num_same=if_same(preds.cpu().data,batch_label)
+            #num_same=if_same(preds.cpu().data,batch_label)
             epoch_correct+=num_same
             logging.debug("Epoch:{}|length:{}|step:{}|num_same:{}|loss:{:.4f}|min loss:{:.4f}".format(epoch,length,step,num_same,loss.item(),min_loss))
             logging.debug("the time of one step:{}".format(datetime.now()-step_time))

@@ -117,7 +117,7 @@ if __name__=='__main__':
         if t not in name_set:
             name.append(t)
             label.append('LK39482832')
-    pd.DataFrame({'name':name,'label':label}).to_csv('./submission/TMIDSubmission7_200_32.csv',sep=',',index=0)
+    pd.DataFrame({'name':name,'label':label}).to_csv('./submission/TMIDSubmission10_0.99x1.01_denselstm_200_32.csv',sep=',',index=0)
     print('finished')
     #TMcal_labels_length(r'E:\Files\TinyMind\\','train_id_label.csv')
     """
