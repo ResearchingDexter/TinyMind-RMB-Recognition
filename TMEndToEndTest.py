@@ -126,7 +126,7 @@ def recognizer(model:nn.Module,crop_imgs:List,names:List,dictionary_inv:dict,cfg
             for p in pred:
                 s = dictionary_inv.get(str(p))
                 pred_str.append(s)
-                pred_str = ''.join(pred_str)
+            pred_str = ''.join(pred_str)
             if len(pred_str) == 0:
                 pred_str = '1'
             logging.info("image's name:{}|predicting character:{}".format(names[i], pred_str))
@@ -206,8 +206,11 @@ def multiscale_test(imgs_name: List, model: nn.Module,recognize_model, cfg=TMETE
                 print('index:{}|coordinate_classs:{}'.format(index, coordinate_class[index]))
                 # TMcrop_img(image,temp,img_name=img_name,path=cfg.CROP_PATH)
                 crop_img=TMcrop_img(image, coordinate_class[index], img_name=img_name, save=False,path=cfg.CROP_PATH_COMPLEMENT)
-                crop_img = TMTextLineDataSet.resize_img(crop_img, r_e_w, r_e_h)
-                crop_img = TMTextLineDataSet.pad_img(crop_img, (r_e_w, r_e_h))
+                if cfg.LOSS=='CTC':
+                    crop_img = TMTextLineDataSet.resize_img(crop_img, r_e_w, r_e_h)
+                    crop_img = TMTextLineDataSet.pad_img(crop_img, (r_e_w, r_e_h))
+                else:
+                    crop_img = crop_img.resize((r_e_w,r_e_h))
                 crop_img=img2tensor(crop_img)
                 recognizer(recognize_model, [crop_img], [img_name], cfg.dictionary_inv, cfg)
                 flag = True
@@ -218,5 +221,4 @@ def multiscale_test(imgs_name: List, model: nn.Module,recognize_model, cfg=TMETE
         logging.info("flag:{}".format(break_time))
     f.close()
 if __name__=='__main__':
-    end_to_end_test(recognize_model=VGGFC(CFG.RECOGNIZE_NUM_CLASS))
-
+    end_to_end_test(recognize_model=VGGLSTM(CFG.RECOGNIZE_NUM_CLASS))

@@ -145,8 +145,8 @@ def fovea2boxes(loc_preds:torch.Tensor,cls_preds:torch.Tensor,fms_size:torch.Ten
         """
         loc_coordinate_xy=densebox_pos[:,:2]-loc_pos[:,:2]*densebox_pos[:,2:]#y1,x1
         loc_coordinate_wh=loc_pos[:,2:].exp()*densebox_pos[:,2:]#y2,x2
-        loc_coordinate_lt=((loc_coordinate_xy-loc_coordinate_wh/2.)*1).floor()
-        loc_coordinate_rb=((loc_coordinate_xy+loc_coordinate_wh/2.)*1.0).ceil()
+        loc_coordinate_lt=((loc_coordinate_xy-loc_coordinate_wh/2.)*0.99).floor()
+        loc_coordinate_rb=((loc_coordinate_xy+loc_coordinate_wh/2.)*1.01).ceil()
         """"""
         #print('xy:{}|wh:{}|lt:{}|rb:{}'.format(loc_coordinate_xy,loc_coordinate_wh,loc_coordinate_lt,loc_coordinate_rb))
         loc_coordinate=torch.cat([loc_coordinate_lt,loc_coordinate_rb],dim=-1)

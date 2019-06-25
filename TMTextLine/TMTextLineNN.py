@@ -3,17 +3,21 @@ import torch.nn.functional as F
 import torch.nn as nn
 from collections import OrderedDict,namedtuple
 from typing import Union,List,Tuple
-__all__=['DenseLSTM','VGGLSTM','DenseCNN','VGGFC','ResNetLSTM']
-kernel_sizes=[(2,2),(2,1),(2,1),(2,1)]
-strides=[(2,2),(2,1),(2,1),(2,1)]
+__all__=['DenseLSTM','VGGLSTM','DenseFC','VGGFC','ResNetLSTM']
+kernel_sizes=[(2,2),(2,2),(2,1),(2,1)]
+strides=[(2,2),(2,2),(2,1),(2,1)]
+ctc_kernel_sizes=[(2,2),(2,1),(2,1),(2,1)]
+ctc_strides=[(2,2),(2,1),(2,1),(2,1)]
 cfg = {
     'A': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'B': [64, 64, 'M', 128, 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'D': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M'],
     'E': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 256, 'M', 512, 512, 512, 512, 'M', 512, 512, 512, 512, 'M'],
 }
-vgg_kernel_sizes=((2,2),(2,2),(2,2),(2,2),(2,1))
-vgg_strides=((2,2),(2,2),(2,2),(2,2),(2,1))
+vgg_kernel_ctc_sizes=((2,2),(2,2),(2,2),(2,1),(2,1))
+vgg_ctc_strides=((2,2),(2,2),(2,2),(2,1),(2,1))
+vgg_kernel_ecp_sizes=((2,2),(2,2),(2,2),(2,2),(2,1))
+vgg_ecp_strides=((2,2),(2,2),(2,2),(2,2),(2,1))
 class ResNetLSTM(nn.Module):
     def __init__(self,num_classes=4134+1):
         super(ResNetLSTM,self).__init__()
@@ -33,7 +37,7 @@ class ResNetLSTM(nn.Module):
 class VGGFC(nn.Module):
     def __init__(self,num_classes=4134+1):
         super(VGGFC,self).__init__()
-        self.feature_extractor=vgg_13bn()
+        self.feature_extractor=vgg_13bn(kernel_sizes=vgg_kernel_ecp_sizes,strides=vgg_kernel_ecp_sizes)
         self.decoder=nn.Sequential(nn.Linear(self.feature_extractor.num_features,self.feature_extractor.num_features//4),
                                    nn.ReLU(inplace=True),
                                    nn.Dropout(p=0),
@@ -49,29 +53,27 @@ class VGGFC(nn.Module):
         #output=output.reshape(b,w,-1)
         #output=output.permute(1,0,2)
         return output
-class DenseCNN(nn.Module):
+class DenseFC(nn.Module):
     def __init__(self,num_classes=4134+1):
-        super(DenseCNN,self).__init__()
+        super(DenseFC,self).__init__()
         self.feature_extractor=DenseNet()
-        self.decoder=nn.Sequential(nn.BatchNorm2d(self.feature_extractor.num_features),
+        self.decoder=nn.Sequential(nn.Linear(self.feature_extractor.num_features,self.feature_extractor.num_features//4),
                                    nn.ReLU(inplace=True),
-                                   nn.Conv2d(self.feature_extractor.num_features,num_classes,kernel_size=1,bias=False),
-                                   nn.BatchNorm2d(num_classes),
-                                   nn.ReLU(inplace=True),
-                                   nn.Conv2d(num_classes,num_classes,kernel_size=3,stride=1,padding=1))
-        self.logsoftmax=nn.LogSoftmax(-1)
+                                   nn.Dropout(p=0),
+                                   nn.Linear(self.feature_extractor.num_features//4,num_classes),
+                                )
+        #self.logsoftmax=nn.LogSoftmax(-1)
     def forward(self, input):
         output=self.feature_extractor(input)
-        output=self.decoder(output)
         b, c, h, w = output.size()
         assert h == 1, "b:{}|c:{}|h:{}|w:{}".format(b, c, h, w)
-        output=output.squeeze(2)
-        output=output.permute(2,0,1)
-        return self.logsoftmax(output)
+        output = output.squeeze(2).permute(0, 2, 1).reshape(b * w, c)
+        output = self.decoder(output)
+        return output
 class VGGLSTM(nn.Module):
     def __init__(self,num_classes=4134+1):
         super(VGGLSTM,self).__init__()
-        self.feature_extractor=vgg_13bn()
+        self.feature_extractor=vgg_13bn(kernel_sizes=vgg_kernel_ctc_sizes,strides=vgg_ctc_strides)
         self.decoder=nn.Sequential(BLSTM(self.feature_extractor.num_features,num_hidden=512,num_out=512,drop_rate=0),
                                    BLSTM(512,512,num_out=num_classes,drop_rate=0))
         self.logsoftmax=nn.LogSoftmax(-1)
@@ -88,8 +90,9 @@ class VGGLSTM(nn.Module):
 class DenseLSTM(nn.Module):
     def __init__(self,num_classes=4134+1):# +1 for the blank
         super(DenseLSTM,self).__init__()
-        self.feature_extractor=DenseNet()
-        self.decoder=BLSTM(self.feature_extractor.num_features,num_hidden=512,num_out=num_classes)
+        self.feature_extractor=DenseNet(kernel_sizes=ctc_kernel_sizes,strides=ctc_strides)
+        self.decoder=nn.Sequential(BLSTM(self.feature_extractor.num_features,num_hidden=512,num_out=512,drop_rate=0),
+                                   BLSTM(512,512,num_out=num_classes,drop_rate=0))
         self.logsoftmax=nn.LogSoftmax(-1)
     def forward(self, input):
         output=self.feature_extractor(input)
@@ -111,7 +114,7 @@ class _DenseLayer(nn.Sequential):
         self.add_module('relu2',nn.ReLU(inplace=True))
         self.add_module('conv2',nn.Conv2d(bn_size*grow_rate,grow_rate,kernel_size=3,stride=1,padding=1,bias=False))
         self.drop_rate=drop_rate
-    def forward(self, input):
+    def forward(self, input:torch.Tensor):
         new_features=super(_DenseLayer,self).forward(input)
         if self.drop_rate>0 and self.drop_rate<1:
             new_features=F.dropout(new_features,p=self.drop_rate,training=self.training)
@@ -140,7 +143,8 @@ class _Transition(nn.Sequential):
         self.add_module('conv',nn.Conv2d(num_input_features,num_output_features,kernel_size=1,stride=1,bias=False))
         self.add_module('pool',nn.AvgPool2d(kernel_size=kernel_size,stride=stride))
 class DenseNet(nn.Module):
-    def __init__(self,growth_rate=32,block_config=(6,12,48,32),num_init_features=64,bn_size=4,drop_rate=0,theata=0.5):
+    def __init__(self,growth_rate=32,block_config=(6,12,48,32),kernel_sizes:List[tuple]=kernel_sizes,
+                 strides:List[tuple]=strides,num_init_features=64,bn_size=4,drop_rate=0,theata=0.5):
         super(DenseNet,self).__init__()
         self.features=nn.Sequential(OrderedDict([
             ('conv0',nn.Conv2d(3,num_init_features,kernel_size=7,stride=2,padding=3,bias=False)),
@@ -190,7 +194,7 @@ class BLSTM(nn.Module):
         output=out.view(b,t,-1)
         return output
 class VGG(nn.Module):
-    def __init__(self,cfg:List,batch_normal:bool=False,kernel_sizes=vgg_kernel_sizes,strides=vgg_strides,in_channel:int=3):
+    def __init__(self,cfg:List,batch_normal:bool=False,kernel_sizes=vgg_kernel_ctc_sizes,strides=vgg_ctc_strides,in_channel:int=3):
         super(VGG,self).__init__()
         self.num_features=in_channel
         self.features=self._make_layer(cfg,batch_normal,kernel_size=kernel_sizes,stride=strides)
@@ -282,8 +286,8 @@ def vgg_11(cfg:dict=cfg):
     return VGG(cfg['A'])
 def vgg_13(cfg:dict=cfg):
     return VGG(cfg['B'])
-def vgg_13bn(cfg:dict=cfg):
-    return VGG(cfg['B'],batch_normal=True)
+def vgg_13bn(cfg:dict=cfg,kernel_sizes=vgg_kernel_ctc_sizes,strides=vgg_ctc_strides):
+    return VGG(cfg['B'],batch_normal=True,kernel_sizes=kernel_sizes,strides=strides)
 if __name__=='__main__':
     #point=namedtuple('point',['x','y'])
     #a=point([7,8],[9,0])
