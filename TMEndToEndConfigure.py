@@ -7,7 +7,7 @@ class TMETEcfg(object):
     CROP_PATH_COMPLEMENT = r'E:\Files\TinyMind\train_data\multi_test_crop_complement\\'
     PATH = r'E:\Files\TinyMind\train_data\\'
     DETECT_MODEL_NAME = 'FoveaBox_FPN_BN_3X3_4h_xywh.pkl'
-    RECOGNIZE_MODEL_NAME='DenseLSTM_2_32_512.pkl'#'optimal0.49613821138211384TMVGG13BNLSTM_2_32_512.pkl':0.9785
+    RECOGNIZE_MODEL_NAME='optimal0.9971047331319235TMVGG19BNLSTM_2_32_512.pkl'#'DenseLSTM_2_32_512.pkl'#'optimal0.49613821138211384TMVGG13BNLSTM_2_32_512.pkl':0.9785
     DETECT_NUM_CLASS = 1  # +1
     RECOGNIZE_NUM_CLASS=36
     TUPLE_L = (3, 5)  # (4,4)
@@ -22,5 +22,5 @@ class TMETEcfg(object):
         if self.LOSS=='ECP':
             self.RECOGNIZE_EXPECTED_IMG_SIZE=(160,32)
             self.RECOGNIZE_NUM_CLASS=35
-            self.RECOGNIZE_MODEL_NAME='DenseFC.pkl'#'TMVGG13BN.pkl'
+            self.RECOGNIZE_MODEL_NAME='optimal0.9970996978851964DenseFC.pkl'#'DenseFC.pkl'#:1x1_0.97.2#'TMVGG13BN.pkl'
 

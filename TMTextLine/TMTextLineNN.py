@@ -73,7 +73,7 @@ class DenseFC(nn.Module):
 class VGGLSTM(nn.Module):
     def __init__(self,num_classes=4134+1):
         super(VGGLSTM,self).__init__()
-        self.feature_extractor=vgg_13bn(kernel_sizes=vgg_kernel_ctc_sizes,strides=vgg_ctc_strides)
+        self.feature_extractor=vgg_19bn(kernel_sizes=vgg_kernel_ctc_sizes,strides=vgg_ctc_strides)
         self.decoder=nn.Sequential(BLSTM(self.feature_extractor.num_features,num_hidden=512,num_out=512,drop_rate=0),
                                    BLSTM(512,512,num_out=num_classes,drop_rate=0))
         self.logsoftmax=nn.LogSoftmax(-1)
@@ -143,7 +143,7 @@ class _Transition(nn.Sequential):
         self.add_module('conv',nn.Conv2d(num_input_features,num_output_features,kernel_size=1,stride=1,bias=False))
         self.add_module('pool',nn.AvgPool2d(kernel_size=kernel_size,stride=stride))
 class DenseNet(nn.Module):
-    def __init__(self,growth_rate=32,block_config=(6,12,48,32),kernel_sizes:List[tuple]=kernel_sizes,
+    def __init__(self,growth_rate=32,block_config=(6,12,48,32),se=False,kernel_sizes:List[tuple]=kernel_sizes,
                  strides:List[tuple]=strides,num_init_features=64,bn_size=4,drop_rate=0,theata=0.5):
         super(DenseNet,self).__init__()
         self.features=nn.Sequential(OrderedDict([
@@ -158,6 +158,8 @@ class DenseNet(nn.Module):
                               growth_rate=growth_rate,drop_rate=drop_rate)
             self.features.add_module('denseblock%d' %(i+1),block)
             num_features+=num_layers*growth_rate
+            if se==True:
+                self.features.add_module('SELayer:{}'.format(i+1),SELayer(num_features))
             if i!=len(block_config)-1:
                 trans=_Transition(num_input_features=num_features,kernel_size=kernel_sizes[i],stride=strides[i],theata=theata)
                 self.features.add_module('transition%d' %(i+1),trans)
@@ -282,12 +284,32 @@ class ResNet(nn.Module):
         for _ in range(1,nums_block):
             layers.append(block(self.inplanes,inplanes))
         return nn.Sequential(*layers)
+class SELayer(nn.Module):
+    def __init__(self,channel:int,reduction:int=16,drop_rate:float=0):
+        super(SELayer,self).__init__()
+        self.avg_pool=nn.AdaptiveAvgPool2d(1)
+        self.fc=nn.Sequential(
+            nn.Linear(in_features=channel,out_features=channel//reduction,bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(in_features=channel//reduction,out_features=channel,bias=True),
+            nn.Sigmoid()
+        )
+        self.drop_rate=drop_rate
+    def forward(self, input:torch.Tensor):
+        b,c,_,_=input.size()
+        output=self.avg_pool(input).squeeze(-1).squeeze(-1)
+        output=self.fc(output).reshape(b,c,1,1)
+        if self.drop_rate>0 and self.drop_rate<1:
+            output=F.dropout(output,p=self.drop_rate,training=self.training)
+        return input*output.expand_as(input)
 def vgg_11(cfg:dict=cfg):
     return VGG(cfg['A'])
 def vgg_13(cfg:dict=cfg):
     return VGG(cfg['B'])
 def vgg_13bn(cfg:dict=cfg,kernel_sizes=vgg_kernel_ctc_sizes,strides=vgg_ctc_strides):
     return VGG(cfg['B'],batch_normal=True,kernel_sizes=kernel_sizes,strides=strides)
+def vgg_19bn(cfg:dict=cfg,kernel_sizes=vgg_kernel_ctc_sizes,strides=vgg_ctc_strides):
+    return VGG(cfg['E'],batch_normal=True,kernel_sizes=kernel_sizes,strides=strides)
 if __name__=='__main__':
     #point=namedtuple('point',['x','y'])
     #a=point([7,8],[9,0])
