@@ -221,4 +221,4 @@ def multiscale_test(imgs_name: List, model: nn.Module,recognize_model, cfg=TMETE
         logging.info("flag:{}".format(break_time))
     f.close()
 if __name__=='__main__':
-    end_to_end_test(recognize_model=DenseLSTM(CFG.RECOGNIZE_NUM_CLASS))
+    end_to_end_test(recognize_model=VGGLSTM(CFG.RECOGNIZE_NUM_CLASS,NonLocal=False))

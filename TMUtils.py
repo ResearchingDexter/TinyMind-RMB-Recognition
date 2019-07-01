@@ -102,7 +102,7 @@ if __name__=='__main__':
     with open('./submission/submission.txt', 'r') as f:
 
         recogniton=f.read().split('\n')
-    total=os.listdir(r'E:\Files\TinyMind\public_test_data\public_test_data\\')
+    total=os.listdir(r'E:\Files\TinyMind\private_test_data\private_test_data\\')
     name=[]
     label=[]
     for r in recogniton:
@@ -117,7 +117,7 @@ if __name__=='__main__':
         if t not in name_set:
             name.append(t)
             label.append('LK39482832')
-    pd.DataFrame({'name':name,'label':label}).to_csv('./submission/TMIDSubmission12_0.99x1.01_densefc_160_32.csv',sep=',',index=0)
+    pd.DataFrame({'name':name,'label':label}).to_csv('./submission/TMIDSubmission_private6_0.99x1.01_VGGN13BNLSTM_200_32.csv',sep=',',index=0)
     print('finished')
     #TMcal_labels_length(r'E:\Files\TinyMind\\','train_id_label.csv')
     """

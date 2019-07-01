@@ -3,6 +3,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 from collections import OrderedDict,namedtuple
 from typing import Union,List,Tuple
+from TMTextLine.TMNonLocalNet import NonLocalNet
 __all__=['DenseLSTM','VGGLSTM','DenseFC','VGGFC','ResNetLSTM']
 kernel_sizes=[(2,2),(2,2),(2,1),(2,1)]
 strides=[(2,2),(2,2),(2,1),(2,1)]
@@ -54,9 +55,9 @@ class VGGFC(nn.Module):
         #output=output.permute(1,0,2)
         return output
 class DenseFC(nn.Module):
-    def __init__(self,num_classes=4134+1):
+    def __init__(self,num_classes=4134+1,se:bool=False):
         super(DenseFC,self).__init__()
-        self.feature_extractor=DenseNet()
+        self.feature_extractor=DenseNet(se=se)
         self.decoder=nn.Sequential(nn.Linear(self.feature_extractor.num_features,self.feature_extractor.num_features//4),
                                    nn.ReLU(inplace=True),
                                    nn.Dropout(p=0),
@@ -71,9 +72,9 @@ class DenseFC(nn.Module):
         output = self.decoder(output)
         return output
 class VGGLSTM(nn.Module):
-    def __init__(self,num_classes=4134+1):
+    def __init__(self,num_classes=4134+1,NonLocal=False):
         super(VGGLSTM,self).__init__()
-        self.feature_extractor=vgg_19bn(kernel_sizes=vgg_kernel_ctc_sizes,strides=vgg_ctc_strides)
+        self.feature_extractor=vgg_13bn(kernel_sizes=vgg_kernel_ctc_sizes,strides=vgg_ctc_strides,NonLocal=NonLocal)
         self.decoder=nn.Sequential(BLSTM(self.feature_extractor.num_features,num_hidden=512,num_out=512,drop_rate=0),
                                    BLSTM(512,512,num_out=num_classes,drop_rate=0))
         self.logsoftmax=nn.LogSoftmax(-1)
@@ -159,7 +160,7 @@ class DenseNet(nn.Module):
             self.features.add_module('denseblock%d' %(i+1),block)
             num_features+=num_layers*growth_rate
             if se==True:
-                self.features.add_module('SELayer:{}'.format(i+1),SELayer(num_features))
+                self.features.add_module('SELayer{}'.format(i+1),SELayer(num_features))
             if i!=len(block_config)-1:
                 trans=_Transition(num_input_features=num_features,kernel_size=kernel_sizes[i],stride=strides[i],theata=theata)
                 self.features.add_module('transition%d' %(i+1),trans)
@@ -196,17 +197,20 @@ class BLSTM(nn.Module):
         output=out.view(b,t,-1)
         return output
 class VGG(nn.Module):
-    def __init__(self,cfg:List,batch_normal:bool=False,kernel_sizes=vgg_kernel_ctc_sizes,strides=vgg_ctc_strides,in_channel:int=3):
+    def __init__(self,cfg:List,batch_normal:bool=False,NonLocal:bool=False,
+                 kernel_sizes=vgg_kernel_ctc_sizes,strides=vgg_ctc_strides,in_channel:int=3):
         super(VGG,self).__init__()
         self.num_features=in_channel
-        self.features=self._make_layer(cfg,batch_normal,kernel_size=kernel_sizes,stride=strides)
+        self.features=self._make_layer(cfg,batch_normal,kernel_size=kernel_sizes,stride=strides,NonLocal=NonLocal)
     def forward(self, input):
         return self.features(input)
-    def _make_layer(self,cfg:List,batch_normal:bool,kernel_size:Tuple,stride:Tuple):
+    def _make_layer(self,cfg:List,batch_normal:bool,kernel_size:Tuple,stride:Tuple,NonLocal=False):
         layers=[]
         i=0
         for v in cfg:
             if v=='M':
+                if i>0 and i<2 and NonLocal:
+                    layers.append(NonLocalNet(self.num_features,self.num_features,subsample=True))
                 layers.append(nn.MaxPool2d(kernel_size[i],stride[i]))
                 i+=1
             else:
@@ -306,10 +310,10 @@ def vgg_11(cfg:dict=cfg):
     return VGG(cfg['A'])
 def vgg_13(cfg:dict=cfg):
     return VGG(cfg['B'])
-def vgg_13bn(cfg:dict=cfg,kernel_sizes=vgg_kernel_ctc_sizes,strides=vgg_ctc_strides):
-    return VGG(cfg['B'],batch_normal=True,kernel_sizes=kernel_sizes,strides=strides)
-def vgg_19bn(cfg:dict=cfg,kernel_sizes=vgg_kernel_ctc_sizes,strides=vgg_ctc_strides):
-    return VGG(cfg['E'],batch_normal=True,kernel_sizes=kernel_sizes,strides=strides)
+def vgg_13bn(cfg:dict=cfg,kernel_sizes=vgg_kernel_ctc_sizes,strides=vgg_ctc_strides,NonLocal=False):
+    return VGG(cfg['B'],batch_normal=True,NonLocal=NonLocal,kernel_sizes=kernel_sizes,strides=strides)
+def vgg_19bn(cfg:dict=cfg,kernel_sizes=vgg_kernel_ctc_sizes,strides=vgg_ctc_strides,NonLocal=False):
+    return VGG(cfg['E'],batch_normal=True,NonLocal=NonLocal,kernel_sizes=kernel_sizes,strides=strides)
 if __name__=='__main__':
     #point=namedtuple('point',['x','y'])
     #a=point([7,8],[9,0])
