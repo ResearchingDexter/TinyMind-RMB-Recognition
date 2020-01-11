@@ -25,3 +25,5 @@ I used **foveabox** to detect the object box and **crnn** to recognize the RMB c
 -TMEndToEndConfigure #the end-to-end configure file while includes detection and recognition
 -TMEndToEndTest      #the end-to-end test code which includes detection and recognition
 ```
+# Weights
+[BaiDuYun](https://pan.baidu.com/s/1B-ao9FhkvRhqGyB1dPQsgg "Detection and recognition")
